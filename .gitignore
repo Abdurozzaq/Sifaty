@@ -1,0 +1,8 @@
+node_modules/
+server/data/sifaty.db
+server/data/sifaty.db-wal
+server/data/sifaty.db-shm
+server/data/results.json
+.env
+.DS_Store
+*.log

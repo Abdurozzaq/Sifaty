@@ -1,0 +1,26 @@
+{
+  "name": "sifaty",
+  "version": "1.0.0",
+  "description": "Survey store interaktif berbasis Holland RIASEC Theory",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "migrate:postgres": "node server/scripts/migrate-results-to-postgres.js"
+  },
+  "keywords": [
+    "riasec",
+    "holland",
+    "career",
+    "survey"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "nanoid": "^3.3.8",
+    "pg": "^8.21.0",
+    "qrcode": "^1.5.4"
+  }
+}
