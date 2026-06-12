@@ -40,6 +40,8 @@ let state = {
   catalogFacets: null,
 };
 
+let mobileNavOpen = false;
+
 let advanceTimer = null;
 
 const app = document.getElementById('app');
@@ -97,6 +99,7 @@ function parseRoute() {
 }
 
 function navigate(path) {
+  closeMobileNav();
   history.pushState(null, '', path);
   parseRoute();
   render();
@@ -202,6 +205,7 @@ function copyText(text) {
 }
 
 function afterRender() {
+  syncMobileNavDom();
   requestAnimationFrame(() => {
     const total = state.currentSurvey?.questions?.length || 0;
     const isQuiz =
@@ -268,24 +272,63 @@ function renderLookupForm(expectedSurveyId = null) {
 
 function renderHeader() {
   const headerAnim = isQuizScreen() ? '' : 'anim-fade-up';
+  const mobileLinks = [
+    ...NAV_ITEMS,
+    { path: '/credits', label: 'Credits', route: 'credits' },
+  ];
   return `
     <header class="site-header sticky top-0 z-40 ${headerAnim}">
       <div class="site-header-inner">
-        <a href="/" onclick="event.preventDefault(); navigate('/')" class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-md bg-teal-800 flex items-center justify-center text-white font-display font-bold text-sm">S</div>
-          <div>
-            <p class="font-display text-base font-bold text-slate-900 leading-tight">Sifaty</p>
-            <p class="text-[10px] text-slate-500 -mt-0.5 tracking-wide">Psikometri &amp; Kesehatan Mental</p>
+        <a href="/" onclick="event.preventDefault(); navigate('/')" class="site-logo flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-md bg-teal-800 flex items-center justify-center text-white font-display font-bold text-sm shrink-0">S</div>
+          <div class="min-w-0">
+            <p class="font-display text-base font-bold text-slate-900 leading-tight truncate">Sifaty</p>
+            <p class="text-[10px] text-slate-500 -mt-0.5 tracking-wide hidden sm:block">Psikometri &amp; Kesehatan Mental</p>
           </div>
         </a>
-        <nav class="flex items-center gap-0.5 sm:gap-1 overflow-x-auto shrink-0">
+        <nav class="site-nav-desktop" aria-label="Navigasi utama">
           ${NAV_ITEMS.map((n) => `
             <a href="${n.path}" onclick="event.preventDefault(); navigate('${n.path}')"
                class="nav-link ${state.route === n.route ? 'nav-link-active' : ''}">${n.label}</a>
           `).join('')}
         </nav>
+        <button type="button" id="site-nav-toggle" class="site-nav-toggle" aria-label="Buka menu navigasi"
+          aria-expanded="${mobileNavOpen ? 'true' : 'false'}" aria-controls="site-nav-mobile"
+          onclick="toggleMobileNav()">
+          <span class="site-nav-toggle-bar"></span>
+          <span class="site-nav-toggle-bar"></span>
+          <span class="site-nav-toggle-bar"></span>
+        </button>
       </div>
+      <div id="site-nav-backdrop" class="site-nav-backdrop" onclick="closeMobileNav()" aria-hidden="true"></div>
+      <nav id="site-nav-mobile" class="site-nav-mobile" aria-label="Menu navigasi">
+        ${mobileLinks.map((n) => `
+          <a href="${n.path}" onclick="event.preventDefault(); navigate('${n.path}')"
+             class="site-nav-mobile-link ${state.route === n.route ? 'site-nav-mobile-link-active' : ''}">${n.label}</a>
+        `).join('')}
+      </nav>
     </header>`;
+}
+
+function syncMobileNavDom() {
+  document.documentElement.classList.toggle('nav-open', mobileNavOpen);
+  document.body.classList.toggle('nav-open', mobileNavOpen);
+  const btn = document.getElementById('site-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', mobileNavOpen ? 'true' : 'false');
+    btn.setAttribute('aria-label', mobileNavOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi');
+  }
+}
+
+function closeMobileNav() {
+  if (!mobileNavOpen) return;
+  mobileNavOpen = false;
+  syncMobileNavDom();
+}
+
+function toggleMobileNav() {
+  mobileNavOpen = !mobileNavOpen;
+  syncMobileNavDom();
 }
 
 function renderStoreChip(key, value, label, active) {
@@ -425,7 +468,7 @@ function renderHome() {
   return `
     ${renderHeader()}
     <main class="max-w-6xl mx-auto px-4 pb-4">
-      <section class="store-hero rounded-lg p-6 md:p-8 mt-8 mb-6 anim-fade-up">
+      <section class="store-hero rounded-lg p-5 sm:p-6 md:p-8 mt-4 sm:mt-6 md:mt-8 mb-6 anim-fade-up">
         <p class="text-xs font-semibold uppercase tracking-widest text-teal-700 mb-3">Platform Psikometri Edukatif</p>
         <h2 class="font-display text-2xl md:text-3xl font-bold text-slate-900 mb-3 leading-tight max-w-2xl">
           Katalog instrumen pengukuran psikologis berbasis penelitian
@@ -438,16 +481,16 @@ function renderHome() {
         <p class="text-xs text-slate-400 mt-5">${surveys.length} instrumen tersedia · <a href="/pustaka" onclick="event.preventDefault(); navigate('/pustaka')" class="text-teal-700 hover:underline">Lihat pustaka referensi</a></p>
       </section>
 
-      <section class="sticky top-16 z-30 mb-6 anim-fade-up">
-        <div class="store-search rounded-lg p-1.5 flex gap-2">
-          <div class="flex-1 flex items-center gap-2 px-3">
+      <section class="sticky top-16 z-30 mb-6 anim-fade-up store-sticky-search">
+        <div class="store-search rounded-lg p-1.5 flex flex-col sm:flex-row gap-2">
+          <div class="flex-1 flex items-center gap-2 px-3 min-w-0">
             <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <input id="store-search-input" type="search" placeholder="Cari instrumen..."
               value="${escapeHtml(f.search)}"
               class="w-full py-2 bg-transparent text-sm focus:outline-none placeholder:text-slate-400 text-slate-700"
               oninput="onStoreSearch(this.value)" />
           </div>
-          <select class="text-xs font-medium border border-slate-200 bg-slate-50 text-slate-700 rounded-md px-3 py-2 focus:outline-none focus:border-teal-600"
+          <select class="text-xs font-medium border border-slate-200 bg-slate-50 text-slate-700 rounded-md px-3 py-2.5 sm:py-2 focus:outline-none focus:border-teal-600 w-full sm:w-auto shrink-0"
             onchange="setStoreFilter('sort', this.value)">
             <option value="featured" ${f.sort === 'featured' ? 'selected' : ''}>Unggulan</option>
             <option value="az" ${f.sort === 'az' ? 'selected' : ''}>A–Z</option>
@@ -1389,6 +1432,8 @@ registerLegacyRenderer('sage', (r) => renderResultSage(r));
 
 window.navigate = navigate;
 window.copyText = copyText;
+window.toggleMobileNav = toggleMobileNav;
+window.closeMobileNav = closeMobileNav;
 
 window.selectAnswer = (id, value, btn) => {
   if (state.advancing) return;
@@ -1606,6 +1651,10 @@ async function render() {
 }
 
 document.documentElement.classList.add('js-ready');
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeMobileNav();
+});
 
 parseRoute();
 render();

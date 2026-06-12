@@ -104,6 +104,7 @@ body {
 .site-header {
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
+  padding-top: env(safe-area-inset-top, 0);
 }
 
 .site-header-inner {
@@ -113,7 +114,134 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
   height: 4rem;
+}
+
+.site-nav-desktop {
+  display: none;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (min-width: 768px) {
+  .site-nav-desktop {
+    display: flex;
+  }
+}
+
+.site-nav-toggle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.site-nav-toggle:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+@media (min-width: 768px) {
+  .site-nav-toggle {
+    display: none;
+  }
+}
+
+.site-nav-toggle-bar {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: #334155;
+  border-radius: 1px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+html.nav-open .site-nav-toggle-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+html.nav-open .site-nav-toggle-bar:nth-child(2) {
+  opacity: 0;
+}
+
+html.nav-open .site-nav-toggle-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.site-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  top: 4rem;
+  z-index: 45;
+  background: rgba(15, 23, 42, 0.35);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.site-nav-mobile {
+  position: fixed;
+  top: 4rem;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  padding: 0.5rem;
+  max-height: calc(100dvh - 4rem);
+  overflow-y: auto;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-0.5rem);
+  pointer-events: none;
+  transition: visibility 0.2s, opacity 0.2s ease, transform 0.2s ease;
+}
+
+html.nav-open .site-nav-backdrop {
+  display: block;
+  opacity: 1;
+}
+
+html.nav-open .site-nav-mobile {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+body.nav-open {
+  overflow: hidden;
+}
+
+.site-nav-mobile-link {
+  display: block;
+  padding: 0.875rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #334155;
+  border-radius: 0.375rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.site-nav-mobile-link:hover {
+  background: #f8fafc;
+  color: #0f766e;
+}
+
+.site-nav-mobile-link-active {
+  background: #f0fdfa;
+  color: #0f766e;
 }
 
 .nav-link {
