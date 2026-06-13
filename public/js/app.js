@@ -9,6 +9,12 @@ import {
   paginateList,
   PAGE_SIZE,
 } from './core/store.js';
+import {
+  saveQuizDraft,
+  loadQuizDraft,
+  clearQuizDraft,
+  snapshotFromState,
+} from './core/quiz-persist.js';
 import { renderResultPage, registerLegacyRenderer } from './renderers/index.js';
 import {
   NAV_ITEMS,
@@ -43,6 +49,36 @@ let state = {
 let mobileNavOpen = false;
 
 let advanceTimer = null;
+
+function resetSurveyUiState() {
+  state.loading = false;
+  state.advancing = false;
+  clearTimeout(advanceTimer);
+  advanceTimer = null;
+}
+
+function persistQuizDraft() {
+  if (state.route !== 'survey' || state.surveyPhase !== 'quiz' || !state.surveySlug) return;
+  saveQuizDraft(state.surveySlug, snapshotFromState(state));
+}
+
+function restoreQuizDraft() {
+  const draft = loadQuizDraft(state.surveySlug);
+  if (!draft) return false;
+
+  state.answers = { ...(draft.answers || {}) };
+  state.ageAnswers = { ...(draft.ageAnswers || {}) };
+  state.participantName = draft.participantName || '';
+
+  const params = new URLSearchParams(window.location.search);
+  const urlHasIndex = params.has('q') || params.get('done') === '1';
+  if (!urlHasIndex && typeof draft.currentQuestion === 'number') {
+    const total = state.currentSurvey?.questions?.length || 0;
+    state.currentQuestion = Math.min(Math.max(0, draft.currentQuestion), total);
+    syncQuizUrl(true);
+  }
+  return true;
+}
 
 const app = document.getElementById('app');
 
@@ -100,8 +136,12 @@ function parseRoute() {
 
 function navigate(path) {
   closeMobileNav();
+  const wasSurvey = state.route === 'survey';
   history.pushState(null, '', path);
   parseRoute();
+  if (state.route === 'result' || (wasSurvey && state.route !== 'survey')) {
+    resetSurveyUiState();
+  }
   render();
 }
 
@@ -857,7 +897,7 @@ function renderSurveyComplete() {
         <input
           type="text"
           placeholder="Contoh: Budi Santoso"
-          value="${state.participantName}"
+          value="${escapeHtml(state.participantName)}"
           class="w-full px-4 py-2.5 rounded-lg border border-cyan-200 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100 focus:outline-none text-sm"
           oninput="setParticipantName(this.value)"
         />
@@ -1438,6 +1478,7 @@ window.closeMobileNav = closeMobileNav;
 window.selectAnswer = (id, value, btn) => {
   if (state.advancing) return;
   state.answers[id] = value;
+  persistQuizDraft();
   state.advancing = true;
   window.sifatyAnim?.likertSelect(btn);
 
@@ -1445,15 +1486,19 @@ window.selectAnswer = (id, value, btn) => {
   advanceTimer = setTimeout(() => {
     state.currentQuestion++;
     state.advancing = false;
+    persistQuizDraft();
     syncQuizUrl();
     render();
   }, 320);
 };
 
 window.startSurvey = () => {
+  clearQuizDraft(state.surveySlug);
+  resetSurveyUiState();
   state.currentQuestion = 0;
   state.answers = {};
   state.ageAnswers = {};
+  state.participantName = '';
   navigate(`/survey/${state.surveySlug}/mulai`);
 };
 
@@ -1493,10 +1538,12 @@ window.lookupResult = async (expectedSurveyId = null) => {
 
 window.setParticipantName = (value) => {
   state.participantName = value;
+  persistQuizDraft();
 };
 
 window.setAgeAnswer = (id, value) => {
   state.ageAnswers[id] = value;
+  persistQuizDraft();
 };
 
 let storeSearchTimer = null;
@@ -1553,8 +1600,7 @@ window.setStorePage = (page) => {
 };
 
 window.prevQuestion = () => {
-  clearTimeout(advanceTimer);
-  state.advancing = false;
+  resetSurveyUiState();
   const total = state.currentSurvey?.questions?.length || 0;
 
   if (state.currentQuestion > 0 || state.currentQuestion >= total) {
@@ -1581,10 +1627,12 @@ window.finishSurvey = async () => {
   try {
     const payload = { ...state.answers, ...state.ageAnswers };
     const res = await submitSurvey(state.surveySlug, payload, state.participantName);
+    clearQuizDraft(state.surveySlug);
+    resetSurveyUiState();
     navigate(`/hasil/${res.id}`);
   } catch (err) {
     showToast(err.message);
-    state.loading = false;
+    resetSurveyUiState();
     render();
   }
 };
@@ -1606,13 +1654,20 @@ async function render() {
       if (slugChanged) {
         state.currentSurvey = await fetchSurvey(state.surveySlug);
         state.surveyPustaka = await fetchPustaka(state.surveySlug);
-        state.answers = {};
-        state.ageAnswers = {};
-        state.participantName = '';
-        state.currentQuestion = 0;
+        resetSurveyUiState();
+        if (state.surveyPhase !== 'quiz') {
+          state.answers = {};
+          state.ageAnswers = {};
+          state.participantName = '';
+          state.currentQuestion = 0;
+        }
       }
       if (state.surveyPhase === 'quiz') {
+        if (slugChanged || Object.keys(state.answers).length === 0) {
+          restoreQuizDraft();
+        }
         applyQuizIndexFromUrl();
+        persistQuizDraft();
       } else if (slugChanged) {
         state.currentQuestion = 0;
       }
@@ -1622,6 +1677,7 @@ async function render() {
         app.innerHTML = renderSurvey();
       }
     } else if (state.route === 'result') {
+      resetSurveyUiState();
       if (!state.result || state.result.id !== state.resultId) {
         state.result = await fetchResult(state.resultId);
       }
