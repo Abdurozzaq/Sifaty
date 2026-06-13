@@ -62,22 +62,19 @@ function persistQuizDraft() {
   saveQuizDraft(state.surveySlug, snapshotFromState(state));
 }
 
-function restoreQuizDraft() {
+function hydrateQuizFromStorage() {
   const draft = loadQuizDraft(state.surveySlug);
-  if (!draft) return false;
-
-  state.answers = { ...(draft.answers || {}) };
-  state.ageAnswers = { ...(draft.ageAnswers || {}) };
-  state.participantName = draft.participantName || '';
-
-  const params = new URLSearchParams(window.location.search);
-  const urlHasIndex = params.has('q') || params.get('done') === '1';
-  if (!urlHasIndex && typeof draft.currentQuestion === 'number') {
-    const total = state.currentSurvey?.questions?.length || 0;
-    state.currentQuestion = Math.min(Math.max(0, draft.currentQuestion), total);
-    syncQuizUrl(true);
+  if (draft) {
+    state.answers = { ...(draft.answers || {}) };
+    state.ageAnswers = { ...(draft.ageAnswers || {}) };
+    state.participantName = draft.participantName || '';
+    if (typeof draft.currentQuestion === 'number') {
+      const total = state.currentSurvey?.questions?.length || 0;
+      state.currentQuestion = Math.min(Math.max(0, draft.currentQuestion), total);
+    }
   }
-  return true;
+  applyQuizIndexFromUrl();
+  syncQuizUrl(true);
 }
 
 const app = document.getElementById('app');
@@ -91,9 +88,11 @@ function applyQuizIndexFromUrl() {
 
   if (params.get('done') === '1') {
     state.currentQuestion = total;
-  } else {
-    const q = parseInt(params.get('q') || '0', 10);
-    state.currentQuestion = Number.isNaN(q) ? 0 : Math.min(Math.max(0, q), total);
+  } else if (params.has('q')) {
+    const q = parseInt(params.get('q'), 10);
+    if (!Number.isNaN(q)) {
+      state.currentQuestion = Math.min(Math.max(0, q), total);
+    }
   }
 }
 
@@ -1663,10 +1662,7 @@ async function render() {
         }
       }
       if (state.surveyPhase === 'quiz') {
-        if (slugChanged || Object.keys(state.answers).length === 0) {
-          restoreQuizDraft();
-        }
-        applyQuizIndexFromUrl();
+        hydrateQuizFromStorage();
         persistQuizDraft();
       } else if (slugChanged) {
         state.currentQuestion = 0;
@@ -1710,6 +1706,11 @@ document.documentElement.classList.add('js-ready');
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeMobileNav();
+});
+
+window.addEventListener('pagehide', persistQuizDraft);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') persistQuizDraft();
 });
 
 parseRoute();
